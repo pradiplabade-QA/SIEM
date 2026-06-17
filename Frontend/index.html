@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEXUS SIEM — Security Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #080c10;
+  --bg2: #0d1117;
+  --surface: #161b22;
+  --surface2: #1c2330;
+  --border: #21262d;
+  --border2: #30363d;
+  --green: #39d353;
+  --green-dim: #1a4a27;
+  --cyan: #58c8dc;
+  --cyan-dim: #0e3340;
+  --amber: #e3b341;
+  --amber-dim: #3d2f0a;
+  --red: #f85149;
+  --red-dim: #3d1614;
+  --purple: #bc8cff;
+  --purple-dim: #2d1f4e;
+  --orange: #f0883e;
+  --orange-dim: #3d2007;
+  --text: #e6edf3;
+  --text2: #8b949e;
+  --text3: #484f58;
+  --font-mono: 'IBM Plex Mono', monospace;
+  --font-sans: 'IBM Plex Sans', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── TOP BAR ── */
+.topbar {
+  height: 48px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 1.5rem;
+  gap: 1.5rem;
+  flex-shrink: 0;
+  z-index: 50;
+}
+.brand {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--green);
+  letter-spacing: 3px;
+  white-space: nowrap;
+}
+.brand span { color: var(--text2); font-weight: 400; }
+.nav-tabs { display: flex; gap: 0; }
+.nav-tab {
+  padding: 0 16px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text2);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+.nav-tab:hover { color: var(--text); }
+.nav-tab.active { color: var(--green); border-bottom-color: var(--green); }
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 1rem; }
+.ws-status { display: flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 11px; color: var(--text2); }
+.ws-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text3); }
+.ws-dot.live { background: var(--green); animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+.clock { font-family: var(--font-mono); font-size: 11px; color: var(--text2); }
+
+/* ── LAYOUT ── */
+.main { display: flex; flex: 1; overflow: hidden; }
+.page { display: none; flex: 1; overflow: hidden; }
+.page.active { display: flex; flex-direction: column; }
+
+/* ── DASHBOARD PAGE ── */
+.dash-grid {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  height: 100%;
+  overflow: hidden;
+}
+.metrics-row {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.metric-card {
+  background: var(--bg2);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.metric-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text3);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.metric-value {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1;
+}
+.metric-value.green { color: var(--green); }
+.metric-value.red { color: var(--red); }
+.metric-value.amber { color: var(--amber); }
+.metric-value.cyan { color: var(--cyan); }
+.metric-value.purple { color: var(--purple); }
+.metric-delta { font-size: 11px; color: var(--text3); font-family: var(--font-mono); }
+
+.dash-body {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  overflow: hidden;
+  gap: 0;
+}
+.dash-main { display: flex; flex-direction: column; overflow: hidden; border-right: 1px solid var(--border); }
+.dash-side { display: flex; flex-direction: column; overflow: hidden; }
+
+/* Charts area */
+.chart-area {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--border);
+  flex-shrink: 0;
+}
+.chart-panel { background: var(--bg2); padding: 14px 16px; }
+.panel-title {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text3);
+  letter-spacing: 1.5px;
+  margin-bottom: 12px;
+}
+
+/* Bar chart */
+.bar-chart { display: flex; align-items: flex-end; gap: 3px; height: 80px; }
+.bar-col { display: flex; flex-direction: column; align-items: center; flex: 1; height: 100%; justify-content: flex-end; }
+.bar-fill { background: var(--green-dim); border-top: 1px solid var(--green); min-height: 2px; width: 100%; transition: height 0.4s ease; border-radius: 1px 1px 0 0; }
+.bar-fill.has-alert { background: var(--red-dim); border-top-color: var(--red); }
+.bar-label { font-family: var(--font-mono); font-size: 9px; color: var(--text3); margin-top: 3px; }
+
+/* Source breakdown */
+.source-list { display: flex; flex-direction: column; gap: 8px; }
+.source-row { display: flex; align-items: center; gap: 8px; }
+.source-name { font-family: var(--font-mono); font-size: 11px; color: var(--text2); min-width: 70px; }
+.source-bar { flex: 1; height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+.source-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
+.source-count { font-family: var(--font-mono); font-size: 11px; color: var(--text3); min-width: 40px; text-align: right; }
+
+/* Alerts feed */
+.alerts-feed { flex: 1; overflow-y: auto; }
+.feed-header {
+  padding: 10px 14px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text3);
+  letter-spacing: 1.5px;
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0;
+  background: var(--bg2);
+  z-index: 5;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.feed-filter-btns { display: flex; gap: 6px; }
+.fbtn {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  background: none;
+  border: 1px solid var(--border2);
+  color: var(--text3);
+  padding: 2px 8px;
+  border-radius: 2px;
+  cursor: pointer;
+}
+.fbtn.on { background: var(--surface2); color: var(--text); border-color: var(--border2); }
+
+.alert-item {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.1s;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.alert-item:hover { background: var(--surface); }
+.alert-item.resolved { opacity: 0.4; }
+.sev-indicator { width: 3px; border-radius: 2px; flex-shrink: 0; align-self: stretch; }
+.sev-CRITICAL { background: var(--red); }
+.sev-HIGH { background: var(--orange); }
+.sev-MEDIUM { background: var(--amber); }
+.sev-LOW { background: var(--cyan); }
+.sev-INFO { background: var(--green); }
+.alert-body { flex: 1; min-width: 0; }
+.alert-title { font-size: 12px; font-weight: 500; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.alert-desc { font-size: 11px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
+.alert-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.sev-badge {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  padding: 1px 6px;
+  border-radius: 2px;
+  letter-spacing: 0.5px;
+}
+.badge-CRITICAL { background: var(--red-dim); color: var(--red); }
+.badge-HIGH { background: var(--orange-dim); color: var(--orange); }
+.badge-MEDIUM { background: var(--amber-dim); color: var(--amber); }
+.badge-LOW { background: var(--cyan-dim); color: var(--cyan); }
+.badge-INFO { background: var(--green-dim); color: var(--green); }
+.alert-time { font-family: var(--font-mono); font-size: 10px; color: var(--text3); }
+.alert-ip { font-family: var(--font-mono); font-size: 10px; color: var(--cyan); }
+.resolve-btn {
+  background: none; border: 1px solid var(--border2);
+  color: var(--text3); padding: 3px 8px;
+  border-radius: 2px; cursor: pointer;
+  font-size: 10px; flex-shrink: 0;
+  transition: all 0.15s;
+}
+.resolve-btn:hover { border-color: var(--green); color: var(--green); }
+
+/* Side panel */
+.side-panel { flex: 1; overflow-y: auto; border-bottom: 1px solid var(--border); }
+.panel-section { padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.panel-section-title {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text3);
+  letter-spacing: 1.5px;
+  margin-bottom: 10px;
+}
+.ip-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+.ip-rank { font-family: var(--font-mono); font-size: 10px; color: var(--text3); min-width: 16px; }
+.ip-addr { font-family: var(--font-mono); font-size: 11px; color: var(--cyan); flex: 1; }
+.ip-flag { font-size: 14px; }
+.ip-count { font-family: var(--font-mono); font-size: 11px; color: var(--amber); }
+.threat-score {
+  font-family: var(--font-mono); font-size: 10px;
+  padding: 1px 5px; border-radius: 2px;
+}
+.ts-high { background: var(--red-dim); color: var(--red); }
+.ts-mid { background: var(--amber-dim); color: var(--amber); }
+.ts-low { background: var(--green-dim); color: var(--green); }
+
+/* ── LOG STREAM PAGE ── */
+.log-page { display: flex; flex-direction: column; height: 100%; }
+.log-controls {
+  padding: 8px 14px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+.log-filter-btn {
+  font-family: var(--font-mono); font-size: 11px;
+  background: var(--surface2); border: 1px solid var(--border2);
+  color: var(--text2); padding: 4px 10px; border-radius: 2px;
+  cursor: pointer; transition: all 0.15s;
+}
+.log-filter-btn:hover, .log-filter-btn.active { background: var(--green-dim); color: var(--green); border-color: var(--green); }
+.search-box {
+  background: var(--surface2); border: 1px solid var(--border2);
+  color: var(--text); padding: 4px 10px; border-radius: 2px;
+  font-family: var(--font-mono); font-size: 11px;
+  outline: none; width: 200px;
+}
+.search-box:focus { border-color: var(--cyan); }
+.search-box::placeholder { color: var(--text3); }
+.pause-btn {
+  margin-left: auto;
+  font-family: var(--font-mono); font-size: 11px;
+  background: none; border: 1px solid var(--border2);
+  color: var(--amber); padding: 4px 12px; border-radius: 2px;
+  cursor: pointer;
+}
+.pause-btn.paused { color: var(--green); }
+.log-stream {
+  flex: 1;
+  overflow-y: auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 8px 0;
+}
+.log-line {
+  display: flex;
+  gap: 10px;
+  padding: 2px 14px;
+  border-left: 2px solid transparent;
+  align-items: flex-start;
+  animation: logIn 0.2s ease;
+}
+@keyframes logIn { from { opacity: 0; background: rgba(88, 200, 220, 0.06); } to { opacity: 1; } }
+.log-line:hover { background: var(--surface); }
+.log-line.WARN, .log-line.ERROR, .log-line.HIGH { border-left-color: var(--amber); }
+.log-line.CRITICAL { border-left-color: var(--red); }
+.log-ts { color: var(--text3); min-width: 60px; flex-shrink: 0; }
+.log-src { min-width: 72px; flex-shrink: 0; }
+.src-nginx { color: var(--green); }
+.src-apache { color: var(--green); }
+.src-ssh { color: var(--cyan); }
+.src-firewall { color: var(--amber); }
+.src-syslog { color: var(--purple); }
+.src-auth { color: var(--red); }
+.log-ip { color: var(--cyan); min-width: 120px; flex-shrink: 0; }
+.log-msg { color: var(--text2); word-break: break-all; }
+.log-tags { display: flex; gap: 4px; flex-shrink: 0; }
+.log-tag {
+  font-size: 9px; padding: 1px 5px; border-radius: 2px;
+  background: var(--surface2); color: var(--text3);
+}
+
+/* ── RULES PAGE ── */
+.rules-page { padding: 1.5rem; overflow-y: auto; }
+.rules-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; }
+.rule-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 14px 16px;
+  transition: border-color 0.15s;
+}
+.rule-card:hover { border-color: var(--border2); }
+.rule-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+.rule-id { font-family: var(--font-mono); font-size: 10px; color: var(--text3); }
+.rule-name { font-size: 13px; font-weight: 500; margin-bottom: 4px; }
+.rule-desc { font-size: 11px; color: var(--text2); line-height: 1.5; margin-bottom: 8px; }
+.rule-tags { display: flex; gap: 4px; flex-wrap: wrap; }
+.rule-tag { font-family: var(--font-mono); font-size: 9px; padding: 2px 6px; border-radius: 2px; background: var(--surface2); color: var(--text3); }
+.rule-active { font-family: var(--font-mono); font-size: 9px; color: var(--green); background: var(--green-dim); padding: 2px 8px; border-radius: 2px; }
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+
+/* ── NEW ALERT FLASH ── */
+.new-alert-banner {
+  position: fixed; bottom: 1.5rem; right: 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--red);
+  border-left: 3px solid var(--red);
+  padding: 10px 16px;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--red);
+  z-index: 200;
+  animation: slideIn 0.25s ease;
+  max-width: 320px;
+}
+@keyframes slideIn { from { transform: translateX(20px); opacity: 0; } to { transform: none; opacity: 1; } }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="brand">NEXUS <span>SIEM</span></div>
+  <div class="nav-tabs">
+    <div class="nav-tab active" onclick="showPage('dashboard', this)">Dashboard</div>
+    <div class="nav-tab" onclick="showPage('alerts', this)">Alerts <span id="alert-count-tab" style="font-family:var(--font-mono);font-size:10px;color:var(--red);margin-left:4px"></span></div>
+    <div class="nav-tab" onclick="showPage('logs', this)">Live Log Stream</div>
+    <div class="nav-tab" onclick="showPage('rules', this)">Correlation Rules</div>
+  </div>
+  <div class="topbar-right">
+    <div class="ws-status">
+      <div class="ws-dot" id="ws-dot"></div>
+      <span id="ws-label">connecting…</span>
+    </div>
+    <div class="clock" id="clock"></div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- ══ DASHBOARD PAGE ══ -->
+  <div class="page active" id="page-dashboard">
+    <div class="dash-grid" style="display:flex;flex-direction:column;">
+      <!-- Metrics -->
+      <div class="metrics-row">
+        <div class="metric-card">
+          <div class="metric-label">TOTAL EVENTS</div>
+          <div class="metric-value cyan" id="m-events">0</div>
+          <div class="metric-delta">all sources</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">TOTAL ALERTS</div>
+          <div class="metric-value red" id="m-alerts">0</div>
+          <div class="metric-delta">triggered</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">CRITICAL</div>
+          <div class="metric-value red" id="m-critical">0</div>
+          <div class="metric-delta">severity</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">HIGH</div>
+          <div class="metric-value amber" id="m-high">0</div>
+          <div class="metric-delta">severity</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">MEDIUM</div>
+          <div class="metric-value" id="m-medium" style="color:var(--amber);opacity:0.75">0</div>
+          <div class="metric-delta">severity</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">ACTIVE RULES</div>
+          <div class="metric-value green" id="m-rules">12</div>
+          <div class="metric-delta">correlation</div>
+        </div>
+      </div>
+
+      <!-- Charts + Feed -->
+      <div class="dash-body" style="flex:1;overflow:hidden;">
+        <div class="dash-main">
+          <!-- Charts -->
+          <div class="chart-area">
+            <div class="chart-panel">
+              <div class="panel-title">EVENTS / HOUR (24H)</div>
+              <div class="bar-chart" id="bar-chart"></div>
+            </div>
+            <div class="chart-panel">
+              <div class="panel-title">LOG SOURCES</div>
+              <div class="source-list" id="source-list"></div>
+            </div>
+          </div>
+
+          <!-- Alert feed -->
+          <div class="alerts-feed" style="flex:1;overflow-y:auto;">
+            <div class="feed-header">
+              <span>ALERT FEED</span>
+              <div class="feed-filter-btns">
+                <button class="fbtn on" onclick="filterAlertFeed('all', this)">ALL</button>
+                <button class="fbtn" onclick="filterAlertFeed('CRITICAL', this)">CRIT</button>
+                <button class="fbtn" onclick="filterAlertFeed('HIGH', this)">HIGH</button>
+                <button class="fbtn" onclick="filterAlertFeed('MEDIUM', this)">MED</button>
+              </div>
+            </div>
+            <div id="alert-feed-list"></div>
+          </div>
+        </div>
+
+        <!-- Side panel -->
+        <div class="dash-side">
+          <div class="side-panel">
+            <div class="panel-section">
+              <div class="panel-section-title">TOP ATTACKER IPs</div>
+              <div id="top-ips"></div>
+            </div>
+            <div class="panel-section">
+              <div class="panel-section-title">ALERT BREAKDOWN</div>
+              <div id="alert-breakdown" class="source-list"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ ALERTS PAGE ══ -->
+  <div class="page" id="page-alerts" style="overflow-y:auto;padding:0;">
+    <div class="feed-header" style="position:sticky;top:0;background:var(--bg2);">
+      <span>ALL ALERTS</span>
+      <div style="display:flex;gap:6px;">
+        <button class="fbtn on" onclick="alertPageFilter('all',this)">ALL</button>
+        <button class="fbtn" onclick="alertPageFilter('CRITICAL',this)">CRITICAL</button>
+        <button class="fbtn" onclick="alertPageFilter('HIGH',this)">HIGH</button>
+        <button class="fbtn" onclick="alertPageFilter('MEDIUM',this)">MEDIUM</button>
+        <button class="fbtn" onclick="alertPageFilter('active',this)">ACTIVE ONLY</button>
+      </div>
+    </div>
+    <div id="alerts-page-list"></div>
+  </div>
+
+  <!-- ══ LOG STREAM PAGE ══ -->
+  <div class="page" id="page-logs">
+    <div class="log-page">
+      <div class="log-controls">
+        <span style="font-family:var(--font-mono);font-size:10px;color:var(--text3);">SOURCE:</span>
+        <button class="log-filter-btn active" onclick="logFilter('', this)">ALL</button>
+        <button class="log-filter-btn" onclick="logFilter('nginx', this)">nginx</button>
+        <button class="log-filter-btn" onclick="logFilter('ssh', this)">ssh</button>
+        <button class="log-filter-btn" onclick="logFilter('firewall', this)">firewall</button>
+        <button class="log-filter-btn" onclick="logFilter('auth', this)">auth</button>
+        <button class="log-filter-btn" onclick="logFilter('syslog', this)">syslog</button>
+        <input class="search-box" type="text" id="log-search" placeholder="filter logs…" oninput="filterLogs()">
+        <button class="pause-btn" id="pause-btn" onclick="togglePause()">⏸ PAUSE</button>
+      </div>
+      <div class="log-stream" id="log-stream"></div>
+    </div>
+  </div>
+
+  <!-- ══ RULES PAGE ══ -->
+  <div class="page" id="page-rules">
+    <div class="rules-page">
+      <div style="font-family:var(--font-mono);font-size:10px;color:var(--text3);letter-spacing:1.5px;margin-bottom:1rem;">
+        CORRELATION RULES — 12 ACTIVE
+      </div>
+      <div class="rules-grid" id="rules-grid"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const API = '/api';
+const WS_URL = `ws://${location.host}/api/ws`;
+
+let allAlerts = [];
+let logLines = [];
+let logSourceFilter = '';
+let logSearchFilter = '';
+let logPaused = false;
+let alertFeedFilter = 'all';
+let alertPageFilterVal = 'all';
+const MAX_LOG_LINES = 300;
+
+// ── CLOCK ──────────────────────────────────────────────────────────
+function updateClock() {
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-US', {hour12: false});
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── PAGES ──────────────────────────────────────────────────────────
+function showPage(name, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  el.classList.add('active');
+  if (name === 'alerts') renderAlertsPage();
+}
+
+// ── WEBSOCKET ──────────────────────────────────────────────────────
+let ws;
+function connectWS() {
+  ws = new WebSocket(WS_URL);
+  ws.onopen = () => {
+    document.getElementById('ws-dot').classList.add('live');
+    document.getElementById('ws-label').textContent = 'live';
+  };
+  ws.onclose = () => {
+    document.getElementById('ws-dot').classList.remove('live');
+    document.getElementById('ws-label').textContent = 'reconnecting…';
+    setTimeout(connectWS, 3000);
+  };
+  ws.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'stats') updateStats(msg.payload);
+    if (msg.type === 'alert') onAlert(msg.payload);
+    if (msg.type === 'event') onEvent(msg.payload);
+  };
+}
+
+// ── STATS UPDATE ───────────────────────────────────────────────────
+function updateStats(s) {
+  document.getElementById('m-events').textContent = fmtNum(s.total_events);
+  document.getElementById('m-alerts').textContent = fmtNum(s.total_alerts);
+  document.getElementById('m-critical').textContent = (s.alerts_by_level?.CRITICAL || 0);
+  document.getElementById('m-high').textContent = (s.alerts_by_level?.HIGH || 0);
+  document.getElementById('m-medium').textContent = (s.alerts_by_level?.MEDIUM || 0);
+  document.getElementById('m-rules').textContent = s.active_rules || 12;
+  document.getElementById('alert-count-tab').textContent = s.total_alerts > 0 ? s.total_alerts : '';
+
+  renderBarChart(s.events_per_hour || []);
+  renderSourceList(s.events_by_source || {});
+  renderTopIPs(s.top_attacker_ips || []);
+  renderAlertBreakdown(s.alerts_by_level || {});
+
+  if (s.recent_alerts) {
+    allAlerts = s.recent_alerts;
+    renderAlertFeed();
+  }
+}
+
+// ── CHARTS ─────────────────────────────────────────────────────────
+function renderBarChart(hourly) {
+  const el = document.getElementById('bar-chart');
+  if (!hourly.length) return;
+  const max = Math.max(...hourly.map(h => h.count), 1);
+  el.innerHTML = hourly.map(h => {
+    const pct = Math.max(2, Math.round((h.count / max) * 80));
+    const hasAlert = h.count > 15;
+    return `<div class="bar-col">
+      <div class="bar-fill${hasAlert ? ' has-alert' : ''}" style="height:${pct}px"></div>
+      <div class="bar-label">${h.hour.split(':')[0]}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderSourceList(sources) {
+  const el = document.getElementById('source-list');
+  const colors = {nginx:'#39d353',apache:'#39d353',ssh:'#58c8dc',firewall:'#e3b341',syslog:'#bc8cff',auth:'#f85149'};
+  const total = Object.values(sources).reduce((a, b) => a + b, 0) || 1;
+  const sorted = Object.entries(sources).sort((a, b) => b[1] - a[1]);
+  el.innerHTML = sorted.map(([src, count]) => `
+    <div class="source-row">
+      <div class="source-name">${src}</div>
+      <div class="source-bar"><div class="source-fill" style="width:${Math.round(count/total*100)}%;background:${colors[src]||'#8b949e'}"></div></div>
+      <div class="source-count">${count}</div>
+    </div>
+  `).join('');
+}
+
+function renderTopIPs(ips) {
+  const el = document.getElementById('top-ips');
+  if (!ips.length) { el.innerHTML = '<div style="color:var(--text3);font-family:var(--font-mono);font-size:11px">No data yet…</div>'; return; }
+  el.innerHTML = ips.slice(0, 8).map((ip, i) => {
+    const ts = ip.geo?.threat_score || 0;
+    const tsClass = ts > 80 ? 'ts-high' : ts > 40 ? 'ts-mid' : 'ts-low';
+    const cc = ip.geo?.country_code || '??';
+    return `<div class="ip-row">
+      <div class="ip-rank">${i+1}</div>
+      <div class="ip-addr">${ip.ip}</div>
+      <div style="font-family:var(--font-mono);font-size:10px;color:var(--text3)">${cc}</div>
+      <span class="threat-score ${tsClass}">${ts}</span>
+      <div class="ip-count">${ip.count}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderAlertBreakdown(levels) {
+  const el = document.getElementById('alert-breakdown');
+  const order = ['CRITICAL','HIGH','MEDIUM','LOW','INFO'];
+  const colors = {CRITICAL:'var(--red)',HIGH:'var(--orange)',MEDIUM:'var(--amber)',LOW:'var(--cyan)',INFO:'var(--green)'};
+  const total = Object.values(levels).reduce((a,b) => a+b, 0) || 1;
+  el.innerHTML = order.map(lv => {
+    const count = levels[lv] || 0;
+    return `<div class="source-row">
+      <div class="source-name" style="color:${colors[lv]}">${lv}</div>
+      <div class="source-bar"><div class="source-fill" style="width:${Math.round(count/total*100)}%;background:${colors[lv]}"></div></div>
+      <div class="source-count">${count}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── ALERT FEED ─────────────────────────────────────────────────────
+function onAlert(alert) {
+  allAlerts.unshift(alert);
+  if (allAlerts.length > 200) allAlerts.pop();
+  renderAlertFeed();
+  showAlertBanner(alert);
+}
+
+let bannerTimer;
+function showAlertBanner(a) {
+  const existing = document.querySelector('.new-alert-banner');
+  if (existing) existing.remove();
+  const div = document.createElement('div');
+  div.className = 'new-alert-banner';
+  div.innerHTML = `⚠ ${a.severity}: ${a.title}`;
+  document.body.appendChild(div);
+  clearTimeout(bannerTimer);
+  bannerTimer = setTimeout(() => div.remove(), 4000);
+}
+
+function filterAlertFeed(filter, btn) {
+  alertFeedFilter = filter;
+  document.querySelectorAll('.feed-filter-btns .fbtn').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  renderAlertFeed();
+}
+
+function renderAlertFeed() {
+  const el = document.getElementById('alert-feed-list');
+  let alerts = allAlerts;
+  if (alertFeedFilter !== 'all') alerts = alerts.filter(a => a.severity === alertFeedFilter);
+  if (!alerts.length) {
+    el.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--text3);font-family:var(--font-mono);font-size:11px">No alerts — system is quiet</div>';
+    return;
+  }
+  el.innerHTML = alerts.slice(0, 50).map(a => renderAlertItem(a)).join('');
+}
+
+function renderAlertsPage() {
+  const el = document.getElementById('alerts-page-list');
+  let alerts = allAlerts;
+  if (alertPageFilterVal === 'active') alerts = alerts.filter(a => !a.resolved);
+  else if (alertPageFilterVal !== 'all') alerts = alerts.filter(a => a.severity === alertPageFilterVal);
+  el.innerHTML = alerts.map(a => renderAlertItem(a, true)).join('');
+}
+
+function alertPageFilter(v, btn) {
+  alertPageFilterVal = v;
+  document.querySelectorAll('#page-alerts .fbtn').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  renderAlertsPage();
+}
+
+function renderAlertItem(a, detailed = false) {
+  const time = new Date(a.timestamp).toLocaleTimeString('en-US', {hour12: false});
+  const tags = (a.tags || []).slice(0, 3).map(t => `<span class="log-tag">${t}</span>`).join('');
+  return `<div class="alert-item${a.resolved ? ' resolved' : ''}">
+    <div class="sev-indicator sev-${a.severity}"></div>
+    <div class="alert-body">
+      <div class="alert-title">${a.title}</div>
+      <div class="alert-desc">${a.description}</div>
+      <div class="alert-meta">
+        <span class="sev-badge badge-${a.severity}">${a.severity}</span>
+        ${a.src_ip ? `<span class="alert-ip">${a.src_ip}</span>` : ''}
+        ${a.username ? `<span style="font-family:var(--font-mono);font-size:10px;color:var(--purple)">${a.username}</span>` : ''}
+        <span class="alert-time">${time}</span>
+        <span style="font-family:var(--font-mono);font-size:10px;color:var(--text3)">${a.event_count} event${a.event_count !== 1 ? 's' : ''}</span>
+      </div>
+      ${detailed ? `<div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap">${tags}</div>` : ''}
+    </div>
+    ${!a.resolved ? `<button class="resolve-btn" onclick="resolveAlert('${a.id}')">✓</button>` : '<span style="font-family:var(--font-mono);font-size:10px;color:var(--text3)">resolved</span>'}
+  </div>`;
+}
+
+async function resolveAlert(id) {
+  await fetch(`${API}/alerts/${id}/resolve`, {method:'POST'});
+  allAlerts = allAlerts.map(a => a.id === id ? {...a, resolved: true} : a);
+  renderAlertFeed();
+  renderAlertsPage();
+}
+
+// ── LOG STREAM ─────────────────────────────────────────────────────
+function onEvent(ev) {
+  logLines.unshift(ev);
+  if (logLines.length > MAX_LOG_LINES) logLines.pop();
+  if (!logPaused) renderLogStream();
+}
+
+function logFilter(src, btn) {
+  logSourceFilter = src;
+  document.querySelectorAll('.log-filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderLogStream();
+}
+
+function filterLogs() {
+  logSearchFilter = document.getElementById('log-search').value.toLowerCase();
+  renderLogStream();
+}
+
+function togglePause() {
+  logPaused = !logPaused;
+  const btn = document.getElementById('pause-btn');
+  btn.textContent = logPaused ? '▶ RESUME' : '⏸ PAUSE';
+  btn.classList.toggle('paused', logPaused);
+  if (!logPaused) renderLogStream();
+}
+
+function renderLogStream() {
+  const el = document.getElementById('log-stream');
+  let lines = logLines;
+  if (logSourceFilter) lines = lines.filter(l => l.source === logSourceFilter);
+  if (logSearchFilter) lines = lines.filter(l =>
+    (l.message || '').toLowerCase().includes(logSearchFilter) ||
+    (l.src_ip || '').includes(logSearchFilter) ||
+    (l.url || '').toLowerCase().includes(logSearchFilter)
+  );
+  el.innerHTML = lines.slice(0, 200).map(l => {
+    const time = new Date(l.timestamp).toLocaleTimeString('en-US', {hour12:false});
+    const tags = (l.tags || []).slice(0,2).map(t => `<span class="log-tag">${t}</span>`).join('');
+    const ip = l.src_ip ? `<span class="log-ip">${l.src_ip.padEnd(15)}</span>` : '<span class="log-ip" style="color:var(--text3)">—              </span>';
+    return `<div class="log-line ${l.level}">
+      <span class="log-ts">${time}</span>
+      <span class="log-src src-${l.source}">${(l.source||'').padEnd(8)}</span>
+      ${ip}
+      <span class="log-msg">${escHtml(l.message || l.raw_line || '')}</span>
+      <span class="log-tags">${tags}</span>
+    </div>`;
+  }).join('');
+}
+
+// ── RULES PAGE ─────────────────────────────────────────────────────
+const RULES = [
+  {id:'R001',name:'SSH Brute Force',sev:'HIGH',desc:'5+ SSH auth failures from same IP in 60 seconds.',tags:['brute-force','ssh']},
+  {id:'R002',name:'Port Scan Detection',sev:'MEDIUM',desc:'Single IP probed 10+ distinct ports in 30 seconds.',tags:['port-scan','reconnaissance']},
+  {id:'R003',name:'SQL Injection Attempt',sev:'HIGH',desc:'Known SQLi payload detected in HTTP request URL.',tags:['sqli','web-attack']},
+  {id:'R004',name:'XSS Attempt',sev:'MEDIUM',desc:'Cross-site scripting payload detected in request.',tags:['xss','web-attack']},
+  {id:'R005',name:'Directory Traversal',sev:'HIGH',desc:'Path traversal attack pattern in HTTP request.',tags:['path-traversal','web-attack']},
+  {id:'R006',name:'Privilege Escalation',sev:'CRITICAL',desc:'User executed commands as root via sudo/su.',tags:['privilege-escalation','insider-threat']},
+  {id:'R007',name:'Firewall Block Spike',sev:'MEDIUM',desc:'20+ firewall blocks from same IP in 60 seconds.',tags:['ddos','scanning']},
+  {id:'R008',name:'Credential Stuffing',sev:'HIGH',desc:'10+ failed login attempts to auth endpoint in 5 minutes.',tags:['credential-stuffing','account-takeover']},
+  {id:'R009',name:'Vulnerability Scanner',sev:'LOW',desc:'Known security scanner user-agent detected.',tags:['scanner','reconnaissance']},
+  {id:'R010',name:'Sensitive File Access',sev:'HIGH',desc:'Attempt to access .env, config, or credential files.',tags:['data-exfiltration','file-access']},
+  {id:'R011',name:'HTTP 5xx Spike',sev:'MEDIUM',desc:'10+ server errors from same IP in 2 minutes — fuzzing.',tags:['fuzzing','error-spike']},
+  {id:'R012',name:'RDP Brute Force',sev:'CRITICAL',desc:'5+ RDP (port 3389) attempts in 60 seconds.',tags:['rdp','brute-force','ransomware-precursor']},
+];
+const sevColors = {CRITICAL:'var(--red)',HIGH:'var(--orange)',MEDIUM:'var(--amber)',LOW:'var(--cyan)',INFO:'var(--green)'};
+function renderRules() {
+  document.getElementById('rules-grid').innerHTML = RULES.map(r => `
+    <div class="rule-card">
+      <div class="rule-header">
+        <span class="rule-id">${r.id}</span>
+        <span class="rule-active">● ACTIVE</span>
+      </div>
+      <div class="rule-name">${r.name}</div>
+      <div class="rule-desc">${r.desc}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div class="rule-tags">${r.tags.map(t=>`<span class="rule-tag">${t}</span>`).join('')}</div>
+        <span style="font-family:var(--font-mono);font-size:10px;color:${sevColors[r.sev]}">${r.sev}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── UTILS ──────────────────────────────────────────────────────────
+function fmtNum(n) {
+  if (n >= 1000000) return (n/1000000).toFixed(1)+'M';
+  if (n >= 1000) return (n/1000).toFixed(1)+'K';
+  return String(n || 0);
+}
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── INIT ──────────────────────────────────────────────────────────
+async function init() {
+  renderRules();
+  connectWS();
+  // Initial data load
+  try {
+    const r = await fetch(`${API}/stats`);
+    const s = await r.json();
+    updateStats(s);
+  } catch(e) {
+    console.log('Could not load initial stats — waiting for WebSocket');
+  }
+  try {
+    const r = await fetch(`${API}/events`);
+    const d = await r.json();
+    logLines = (d.events || []).slice(0, MAX_LOG_LINES);
+    renderLogStream();
+  } catch(e) {}
+  try {
+    const r = await fetch(`${API}/alerts`);
+    const d = await r.json();
+    allAlerts = d.alerts || [];
+    renderAlertFeed();
+  } catch(e) {}
+}
+init();
+</script>
+</body>
+</html>
