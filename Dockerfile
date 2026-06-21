@@ -3,11 +3,11 @@ WORKDIR /app
 COPY go.mod go.sum* ./
 RUN go mod download
 COPY . .
-RUN go build -o siem ./cmd/siem
+RUN CGO_ENABLED=0 GOOS=linux go build -o siem ./cmd/siem
 
 FROM alpine:3.19
 WORKDIR /app
 COPY --from=builder /app/siem .
 COPY --from=builder /app/Frontend ./Frontend
-EXPOSE 8080
+EXPOSE 8081
 CMD ["./siem"]
