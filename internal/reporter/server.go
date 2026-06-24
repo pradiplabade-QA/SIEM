@@ -53,7 +53,7 @@ func (s *Server) RegisterRoutes(r *mux.Router) {
 	api.HandleFunc("/ws", s.handleWS)
 
 	// Serve frontend
-	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./frontend")))
+	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./Frontend")))
 }
 
 func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {

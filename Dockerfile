@@ -9,5 +9,5 @@ FROM alpine:3.19
 WORKDIR /app
 COPY --from=builder /app/siem .
 COPY --from=builder /app/Frontend ./Frontend
-EXPOSE 8081
+EXPOSE 8082
 CMD ["./siem"]
